@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Control de Aforo</title>
+
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+
+<style>
+  /* Forzamos que el cuerpo ocupe el 100% de la ventana sin scroll */
+  html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden; 
+    font-family: Arial, sans-serif;
+    background: #f2f2f2;
+  }
+
+  body {
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Cada espacio ocupa exactamente un tercio de la pantalla */
+  .espacio {
+    flex: 1; 
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    border-bottom: 2px solid #ccc;
+    background: white;
+    padding: 5px;
+    box-sizing: border-box;
+  }
+
+  .titulo {
+    font-size: 5vw; /* Tamaño dinámico según ancho de pantalla */
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 5px;
+  }
+
+  .aforo {
+    font-size: 15vw; /* Número muy grande */
+    font-weight: bold;
+    line-height: 1;
+    margin: 5px 0;
+  }
+
+  .verde { color: #28a745; }
+  .rojo { color: #dc3545; }
+
+  /* Contenedor de controles */
+  .controles {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  input {
+    font-size: 25px;
+    width: 60px;
+    height: 50px;
+    text-align: center;
+    border: 2px solid #ddd;
+    border-radius: 5px;
+  }
+
+  button {
+    font-size: 20px;
+    font-weight: bold;
+    padding: 15px 25px;
+    cursor: pointer;
+    border: none;
+    border-radius: 8px;
+    background-color: #007bff;
+    color: white;
+    touch-action: manipulation; /* Optimiza el toque en móvil */
+  }
+
+  button:active {
+    background-color: #0056b3;
+    transform: scale(0.95);
+  }
+
+  .btn-salen { background-color: #6c757d; }
+
+  .reset {
+    font-size: 14px;
+    padding: 5px 15px;
+    background: #eee;
+    color: #666;
+    margin-top: 10px;
+    border: 1px solid #ccc;
+  }
+</style>
+</head>
+
+<body>
+
+<div id="capilla1" class="espacio"></div>
+<div id="capilla2" class="espacio"></div>
+<div id="patio" class="espacio"></div>
+
+<script>
+// 🔴 TUS DATOS DE FIREBASE
+const firebaseConfig = {
+  apiKey: "AIzaSyATFANp2MCPM0QW3rxSVbM_j7BFUsr2-bU",
+  authDomain: "aforo-54d45.firebaseapp.com",
+  projectId: "aforo-54d45"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+const espacios = {
+  capilla1: { nombre: "Capilla 1", max: 45 },
+  capilla2: { nombre: "Capilla 2", max: 85 },
+  patio: { nombre: "Patio", max: 60 }
+};
+
+Object.keys(espacios).forEach(id => {
+  const ref = db.collection("aforo").doc(id);
+
+  ref.onSnapshot(doc => {
+    let valor = doc.exists ? doc.data().valor : 0;
+    if (!doc.exists) ref.set({ valor: 0 });
+
+    const espacio = espacios[id];
+    const color = valor > espacio.max ? "rojo" : "verde";
+
+    document.getElementById(id).innerHTML = `
+      <div class="titulo">${espacio.nombre} (Máx ${espacio.max})</div>
+      <div class="aforo ${color}">${valor}</div>
+
+      <div class="controles">
+        <button onclick="cambiar('${id}', 1)">ENTRAN</button>
+        <input type="number" id="num-${id}" value="1" min="1">
+        <button class="btn-salen" onclick="cambiar('${id}', -1)">SALEN</button>
+      </div>
+
+      <button class="reset" onclick="resetear('${id}')">RESET</button>
+    `;
+  });
+});
+
+function cambiar(id, signo) {
+  const num = parseInt(document.getElementById("num-" + id).value);
+  if (isNaN(num) || num <= 0) return;
+
+  const ref = db.collection("aforo").doc(id);
+  ref.update({
+    valor: firebase.firestore.FieldValue.increment(num * signo)
+  });
+}
+
+function resetear(id) {
+  if (!confirm("¿Seguro que deseas poner el aforo en 0?")) return;
+  db.collection("aforo").doc(id).set({ valor: 0 });
+}
+</script>
+
+</body>
+</html>
